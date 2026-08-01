@@ -437,7 +437,7 @@ function updateUI(data) {
     updateTemperatureDisplay();
     
     cityNameEl.textContent = data.name;
-    weatherConditionEl.textContent = data.condition;
+    if (weatherConditionEl) weatherConditionEl.textContent = data.condition;
     weatherIconEl.src = `https://openweathermap.org/img/wn/${data.iconCode}@4x.png`;
 
     // Advanced widget details
@@ -501,14 +501,15 @@ function updateTemperatureDisplay() {
     }
 }
 
-// Populate horizontal hourly forecast cards starting from the current hour
+// Populate horizontal hourly forecast cards and center on current hour
 function renderHourlyForecast(hourlyData, currentHourIndex) {
     const listContainer = document.getElementById('hourly-list');
     listContainer.innerHTML = '';
 
-    // Show 24 consecutive hours (step of 1 for granular detail)
+    const startIdx = Math.max(0, currentHourIndex - 5);
+    // Show 24 consecutive hours (starting 5 hours in the past for context)
     for (let i = 0; i < 24; i++) {
-        const idx = currentHourIndex + i;
+        const idx = startIdx + i;
         if (idx >= hourlyData.time.length) break;
 
         const timeStr = hourlyData.time[idx];
@@ -519,7 +520,9 @@ function renderHourlyForecast(hourlyData, currentHourIndex) {
         let hours = date.getHours();
         const ampm = hours >= 12 ? 'PM' : 'AM';
         hours = hours % 12 || 12;
-        const formattedHour = i === 0 ? 'Now' : `${hours} ${ampm}`;
+        
+        const isCurrentHour = idx === currentHourIndex;
+        const formattedHour = isCurrentHour ? 'Now' : `${hours} ${ampm}`;
 
         const conditionMapping = wmoToCondition[code] || { main: 'Clear', icon: '01d' };
         const iconSrc = `https://openweathermap.org/img/wn/${conditionMapping.icon}.png`;
@@ -530,7 +533,7 @@ function renderHourlyForecast(hourlyData, currentHourIndex) {
         }
 
         const card = document.createElement('div');
-        card.className = `hourly-card${i === 0 ? ' active-hour' : ''}`;
+        card.className = `hourly-card${isCurrentHour ? ' active-hour' : ''}`;
         card.innerHTML = `
             <span class="time">${formattedHour}</span>
             <img src="${iconSrc}" alt="forecast icon">
@@ -538,6 +541,14 @@ function renderHourlyForecast(hourlyData, currentHourIndex) {
         `;
         listContainer.appendChild(card);
     }
+
+    // Scroll active-hour card into the center of the listContainer
+    setTimeout(() => {
+        const activeCard = listContainer.querySelector('.active-hour');
+        if (activeCard) {
+            activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }, 200);
 }
 
 // Draw dynamic temperature curves
