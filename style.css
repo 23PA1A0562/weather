@@ -548,6 +548,20 @@ header {
     border-color: var(--accent-color);
 }
 
+.pressure-card {
+    grid-column: span 2;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .pressure-card {
+        grid-column: span 4 !important;
+    }
+}
+
 .stat-title {
     font-size: 13px;
     text-transform: uppercase;
@@ -968,4 +982,34 @@ header {
 
 .shake {
     animation: shake 0.5s ease-in-out;
+}
+
+/* Global Dashboard Loading Skeleton State */
+.weather-container.loading .hero-temp,
+.weather-container.loading .hero-city,
+.weather-container.loading .hero-condition,
+.weather-container.loading .hourly-card,
+.weather-container.loading .chart-wrapper,
+.weather-container.loading .daily-row,
+.weather-container.loading .stat-card > * {
+    color: transparent !important;
+    border-color: transparent !important;
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%) !important;
+    background-size: 200% 100% !important;
+    animation: loading-shimmer 1.5s infinite !important;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.weather-container.loading .weather-hero-icon,
+.weather-container.loading .progress-ring-wrapper svg,
+.weather-container.loading .compass-wrapper {
+    opacity: 0.15;
+    filter: blur(2px);
+    pointer-events: none;
+}
+
+/* Scroll centering bug fix for container */
+.weather-container {
+    margin: auto auto;
 }

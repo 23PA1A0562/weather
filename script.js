@@ -238,14 +238,80 @@ function triggerSearchError() {
     }, 500);
 }
 
-// Fetch coordinates from geocoding API
+// City synonym mappings for common names that fail in Open-Meteo
+const CITY_SYNONYMS = {
+    "bangalore": "Bengaluru",
+    "bombay": "Mumbai",
+    "madras": "Chennai",
+    "calcutta": "Kolkata",
+    "trivandrum": "Thiruvananthapuram",
+    "cochin": "Kochi",
+    "pondicherry": "Puducherry",
+    "mysore": "Mysuru",
+    "poona": "Pune",
+    "vizag": "Visakhapatnam",
+    "gauhati": "Guwahati",
+    "baroda": "Vadodara",
+    "benares": "Varanasi"
+};
+
+// Fetch coordinates from geocoding API with robust filtering
 async function getGeoCoords(city) {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+    let cleanCity = city.trim();
+    let filterPart = null;
+
+    // Handle comma-separated location refinements (e.g. "Bangalore, India")
+    if (cleanCity.includes(',')) {
+        const parts = cleanCity.split(',');
+        cleanCity = parts[0].trim();
+        filterPart = parts[1].trim().toLowerCase();
+    }
+
+    const lowerCity = cleanCity.toLowerCase();
+    if (CITY_SYNONYMS[lowerCity]) {
+        cleanCity = CITY_SYNONYMS[lowerCity];
+    }
+
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanCity)}&count=20&language=en&format=json`;
     const geoResponse = await fetch(geoUrl);
     if (!geoResponse.ok) throw new Error("Network response error during geocoding.");
     const geoData = await geoResponse.json();
     if (!geoData.results || geoData.results.length === 0) throw new Error("City not found: " + city);
-    return geoData.results[0];
+
+    const results = geoData.results;
+
+    // Sort to prioritize India and larger cities to avoid matching tiny foreign villages
+    results.sort((a, b) => {
+        if (filterPart) {
+            const aMatches = (
+                (a.country && a.country.toLowerCase().includes(filterPart)) ||
+                (a.country_code && a.country_code.toLowerCase().includes(filterPart)) ||
+                (a.admin1 && a.admin1.toLowerCase().includes(filterPart)) ||
+                (a.admin2 && a.admin2.toLowerCase().includes(filterPart))
+            ) ? 1 : 0;
+            const bMatches = (
+                (b.country && b.country.toLowerCase().includes(filterPart)) ||
+                (b.country_code && b.country_code.toLowerCase().includes(filterPart)) ||
+                (b.admin1 && b.admin1.toLowerCase().includes(filterPart)) ||
+                (b.admin2 && b.admin2.toLowerCase().includes(filterPart))
+            ) ? 1 : 0;
+            if (aMatches !== bMatches) return bMatches - aMatches;
+        }
+
+        // Prioritize India (IN)
+        const aIsIndia = a.country_code === 'IN' ? 1 : 0;
+        const bIsIndia = b.country_code === 'IN' ? 1 : 0;
+        if (aIsIndia !== bIsIndia) return bIsIndia - aIsIndia;
+
+        // Prioritize population
+        const aPop = a.population || 0;
+        const bPop = b.population || 0;
+        if (aPop !== bPop) return bPop - aPop;
+
+        return 0;
+    });
+
+    return results[0];
 }
 
 // Search by city query
@@ -290,10 +356,13 @@ async function getWeatherByCoords(lat, lon) {
 
 // Manage skeleton loading screen state
 function toggleSkeletonState(isLoading) {
+    const container = document.querySelector('.weather-container');
     if (isLoading) {
+        if (container) container.classList.add('loading');
         weatherSkeleton.style.display = 'flex';
         weatherRealContent.style.display = 'none';
     } else {
+        if (container) container.classList.remove('loading');
         weatherSkeleton.style.display = 'none';
         weatherRealContent.style.display = 'block';
     }
