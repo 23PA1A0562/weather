@@ -486,8 +486,53 @@ function updateUI(data) {
     const selectedBackgroundUrl = conditionBackgrounds[timeOfDay];
     
     const overlay = document.getElementById('bg-overlay');
-    overlay.style.backgroundImage = selectedBackgroundUrl;
-    overlay.style.opacity = 0.55;
+    if (overlay) {
+        overlay.style.backgroundImage = selectedBackgroundUrl;
+        overlay.style.opacity = 0.55;
+    }
+
+    // Update dynamic background blob colors
+    const root = document.documentElement;
+    const cond = data.condition;
+    const isDay = data.isDay === 1;
+
+    if (cond === 'Clear') {
+        if (isDay) {
+            root.style.setProperty('--blob-color-1', '#ff9f43');
+            root.style.setProperty('--blob-color-2', '#ff5252');
+            root.style.setProperty('--blob-color-3', '#00d2d3');
+        } else {
+            root.style.setProperty('--blob-color-1', '#5f27cd');
+            root.style.setProperty('--blob-color-2', '#0a3d62');
+            root.style.setProperty('--blob-color-3', '#1e272e');
+        }
+    } else if (cond === 'Clouds') {
+        if (isDay) {
+            root.style.setProperty('--blob-color-1', '#4b6584');
+            root.style.setProperty('--blob-color-2', '#a5b1c2');
+            root.style.setProperty('--blob-color-3', '#778ca3');
+        } else {
+            root.style.setProperty('--blob-color-1', '#2f3640');
+            root.style.setProperty('--blob-color-2', '#718093');
+            root.style.setProperty('--blob-color-3', '#192a56');
+        }
+    } else if (cond === 'Rain' || cond === 'Mist') {
+        root.style.setProperty('--blob-color-1', '#0984e3');
+        root.style.setProperty('--blob-color-2', '#2d3436');
+        root.style.setProperty('--blob-color-3', '#00cec9');
+    } else if (cond === 'Thunderstorm') {
+        root.style.setProperty('--blob-color-1', '#ffeaa7');
+        root.style.setProperty('--blob-color-2', '#6c5ce7');
+        root.style.setProperty('--blob-color-3', '#1e272e');
+    } else if (cond === 'Snow') {
+        root.style.setProperty('--blob-color-1', '#dfe6e9');
+        root.style.setProperty('--blob-color-2', '#74b9ff');
+        root.style.setProperty('--blob-color-3', '#0984e3');
+    } else {
+        root.style.setProperty('--blob-color-1', '#00f2fe');
+        root.style.setProperty('--blob-color-2', '#ff007f');
+        root.style.setProperty('--blob-color-3', '#7000ff');
+    }
 }
 
 // Convert temperature scale displays

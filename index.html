@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Atmosphere - Premium Weather Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Glowing background ambient blobs -->
+    <div class="blob-container">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
     <!-- Dynamic background overlays -->
     <div class="bg-overlay" id="bg-overlay"></div>
     <div class="bg-gradient-mask"></div>
@@ -102,13 +113,17 @@
                         <svg class="chart-svg" id="temp-chart-svg" viewBox="0 0 500 120" preserveAspectRatio="none">
                             <defs>
                                 <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.4"/>
-                                    <stop offset="100%" stop-color="#00f2fe" stop-opacity="0"/>
+                                    <stop offset="0%" stop-color="var(--accent-color)" stop-opacity="0.45"/>
+                                    <stop offset="100%" stop-color="var(--accent-color)" stop-opacity="0"/>
                                 </linearGradient>
+                                <filter id="chart-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
                             </defs>
                             <!-- Line path and area fill generated via JavaScript -->
                             <path id="chart-area-path" fill="url(#chart-grad)" d="" />
-                            <path id="chart-line-path" fill="none" stroke="#00f2fe" stroke-width="3.5" stroke-linecap="round" d="" />
+                            <path id="chart-line-path" fill="none" stroke="var(--accent-color)" stroke-width="3.5" stroke-linecap="round" filter="url(#chart-glow)" d="" />
                         </svg>
                         <div class="chart-tooltip" id="chart-tooltip"></div>
                     </div>
