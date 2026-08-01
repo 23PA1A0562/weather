@@ -3,89 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Weather App</title>
+    <title>Atmosphere - Premium Weather Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="weather-container glass">
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h1 class="title" style="margin-bottom: 0;">Weather App</h1>
-            <div class="toggle-container" style="display: flex; background: rgba(255,255,255,0.2); border-radius: 20px; overflow: hidden; cursor: pointer;" id="unit-toggle" title="Toggle °C / °F">
-                <span id="celsius-btn" class="unit active" style="padding: 5px 10px; font-weight: 600; font-size: 14px; background: #fff; color: #1e3c72; transition: all 0.3s;">°C</span>
-                <span id="fahrenheit-btn" class="unit" style="padding: 5px 10px; font-weight: 600; font-size: 14px; color: #fff; transition: all 0.3s;">°F</span>
+    <!-- Dynamic background overlays -->
+    <div class="bg-overlay" id="bg-overlay"></div>
+    <div class="bg-gradient-mask"></div>
+
+    <div class="weather-container">
+        <!-- Dashboard Header -->
+        <header>
+            <div class="brand-section">
+                <div class="logo-glow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-cloud-lightning"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 8.58"></path><polyline points="13 11 9 17 12 17 9 23"></polyline></svg>
+                </div>
+                <h1 class="brand-title">Atmosphere</h1>
+            </div>
+            
+            <!-- Sleek Pill Unit Switcher -->
+            <div class="unit-toggle" id="unit-toggle" title="Toggle °C / °F">
+                <div class="toggle-pill" id="toggle-pill"></div>
+                <span id="celsius-btn" class="active-unit">°C</span>
+                <span id="fahrenheit-btn">°F</span>
             </div>
         </header>
 
-        <div class="tabs" style="display: flex; margin-bottom: 20px; border-radius: 15px; overflow: hidden; background: rgba(0,0,0,0.2);">
-            <button id="tab-weather" style="flex: 1; padding: 10px; border: none; background: rgba(255,255,255,0.2); color: #fff; font-weight: 600; cursor: pointer; transition: 0.3s;">City Weather</button>
-            <button id="tab-drive" style="flex: 1; padding: 10px; border: none; background: transparent; color: #fff; font-weight: 600; cursor: pointer; transition: 0.3s;">Drive Planner</button>
-        </div>
-        
-        <div class="search-box" id="weather-search-box">
-            <input type="text" id="city-input" placeholder="Search City (e.g. Hyderabad)">
-            <button id="location-btn" title="Use My Location">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm0-136a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z"></path></svg>
+        <!-- Navigation Tabs -->
+        <div class="tabs-nav">
+            <button id="tab-weather" class="tab-btn active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                City Weather
             </button>
-            <button id="search-btn" title="Search">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+            <button id="tab-drive" class="tab-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                Drive Planner
             </button>
         </div>
 
-        <div class="drive-box" id="drive-search-box" style="display: none; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-            <input type="text" id="origin-input" placeholder="From (e.g. Hyderabad)" style="width: 100%; padding: 12px 20px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: #fff; outline: none;">
-            <input type="text" id="dest-input" placeholder="To (e.g. Bangalore)" style="width: 100%; padding: 12px 20px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: #fff; outline: none;">
-            <button id="plan-drive-btn" style="width: 100%; padding: 12px; border-radius: 20px; border: none; background: #fff; color: #1e3c72; font-weight: 700; cursor: pointer;">Check Route Safety</button>
+        <!-- City Search Controls -->
+        <div class="search-container" id="weather-search-container">
+            <div class="search-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 8px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="city-input" placeholder="Search a city... (e.g. Hyderabad, Tokyo)">
+            </div>
+            <button id="location-btn" class="icon-btn" title="Use Current Location">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line></svg>
+            </button>
+            <button id="search-btn" class="icon-btn" title="Search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
         </div>
 
-        <div class="drive-results" id="drive-results" style="display: none; background: rgba(0,0,0,0.3); border-radius: 20px; padding: 20px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: #fff;">Route Assessment</h3>
-            <p id="drive-distance" style="font-size: 14px; margin-bottom: 5px; color: rgba(255,255,255,0.8);">Distance: -- km</p>
-            <p id="drive-duration" style="font-size: 14px; margin-bottom: 15px; color: rgba(255,255,255,0.8);">Est. Time: -- hrs</p>
-            <div id="drive-safety-card" style="padding: 15px; border-radius: 15px; background: #2ecc71; transition: 0.3s;">
-                <h4 id="drive-status" style="font-size: 20px; font-weight: 700; margin-bottom: 5px; color: #fff;">Safe to Drive!</h4>
-                <p id="drive-reason" style="font-size: 14px; color: rgba(255,255,255,0.9);">Conditions look good.</p>
+        <!-- Floating Error State -->
+        <div class="error-message" id="error-message">City not found. Please try again.</div>
+
+        <!-- Dashboard Weather Panel -->
+        <div class="dashboard-grid" id="weather-dashboard-panel">
+            <!-- Left Panel: Main Display -->
+            <div class="main-weather-card" id="main-weather-card">
+                <!-- Skeleton Loading State (toggled via JS) -->
+                <div class="skeleton-state" id="weather-skeleton" style="display: none; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <div class="shimmer skeleton-icon"></div>
+                    <div class="shimmer skeleton-text large"></div>
+                    <div class="shimmer skeleton-text"></div>
+                    <div class="shimmer skeleton-text medium"></div>
+                </div>
+                <!-- Real Weather Content -->
+                <div id="weather-real-content" style="width: 100%;">
+                    <div class="weather-icon-wrapper">
+                        <img id="weather-icon" class="weather-hero-icon" src="" alt="Weather Status Icon" />
+                    </div>
+                    <h2 id="temperature" class="hero-temp">--°</h2>
+                    <h3 id="city-name" class="hero-city">--</h3>
+                    <p id="weather-condition" class="hero-condition">--</p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Forecasts and Temperature Trend -->
+            <div class="forecast-panel">
+                <!-- Hourly Forecast Slider -->
+                <div class="section-card">
+                    <h4 class="section-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        24-Hour Forecast
+                    </h4>
+                    <div class="hourly-container" id="hourly-list">
+                        <!-- Populated dynamically by script.js -->
+                    </div>
+                </div>
+
+                <!-- Temperature Trend Curve -->
+                <div class="section-card">
+                    <h4 class="section-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        Temperature Trend
+                    </h4>
+                    <div class="chart-wrapper">
+                        <svg class="chart-svg" id="temp-chart-svg" viewBox="0 0 500 120" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.4"/>
+                                    <stop offset="100%" stop-color="#00f2fe" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Line path and area fill generated via JavaScript -->
+                            <path id="chart-area-path" fill="url(#chart-grad)" d="" />
+                            <path id="chart-line-path" fill="none" stroke="#00f2fe" stroke-width="3.5" stroke-linecap="round" d="" />
+                        </svg>
+                        <div class="chart-tooltip" id="chart-tooltip"></div>
+                    </div>
+                </div>
+
+                <!-- 5-Day Forecast -->
+                <div class="section-card">
+                    <h4 class="section-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        5-Day Forecast
+                    </h4>
+                    <div class="daily-container" id="daily-list">
+                        <!-- Populated dynamically by script.js -->
+                    </div>
+                </div>
             </div>
         </div>
 
-
-        <div class="error-message" id="error-message">City not found. Try again.</div>
-
-        <div class="weather-info" id="weather-info">
-            <div class="weather-icon-wrapper">
-                <img id="weather-icon" src="" alt="Weather Icon" />
+        <!-- Bottom Grid of Detail Cards -->
+        <div class="stats-grid" id="weather-stats-grid">
+            <!-- Compass Card -->
+            <div class="stat-card">
+                <span class="stat-title">Wind Speed & Dir</span>
+                <div class="compass-wrapper">
+                    <div class="compass-arrow" id="compass-arrow"></div>
+                </div>
+                <span class="stat-value-large" id="wind-speed">-- km/h</span>
             </div>
-            <h2 id="temperature">--°C</h2>
-            <h3 id="city-name">--</h3>
-            <p id="weather-condition">--</p>
-            
-            <div class="weather-details">
-                <div class="detail">
-                    <span class="label">Humidity</span>
-                    <span class="value" id="humidity">--%</span>
+
+            <!-- Humidity progress circle -->
+            <div class="stat-card">
+                <span class="stat-title">Humidity</span>
+                <div class="progress-ring-wrapper">
+                    <svg width="75" height="75">
+                        <circle class="progress-ring-circle progress-ring-bg" cx="37.5" cy="37.5" r="32"/>
+                        <circle class="progress-ring-circle progress-ring-bar" id="humidity-bar" cx="37.5" cy="37.5" r="32" stroke-dasharray="201" stroke-dashoffset="201"/>
+                    </svg>
+                    <div class="progress-text" id="humidity">--%</div>
                 </div>
-                <div class="detail">
-                    <span class="label">Wind</span>
-                    <span class="value" id="wind-speed">-- km/h</span>
+            </div>
+
+            <!-- UV index slider -->
+            <div class="stat-card">
+                <span class="stat-title">UV Index</span>
+                <div class="uv-gauge-wrapper">
+                    <span class="stat-value-large" id="uv-index">--</span>
+                    <div class="uv-bar-container">
+                        <div class="uv-bar-fill" id="uv-bar-fill"></div>
+                    </div>
+                    <span id="uv-text" style="font-size: 12px; color: var(--text-muted);">--</span>
                 </div>
-                <div class="detail">
-                    <span class="label">AQI (Air Quality)</span>
-                    <span class="value" id="aqi">--</span>
+            </div>
+
+            <!-- Air Quality index banner -->
+            <div class="stat-card">
+                <span class="stat-title">Air Quality (AQI)</span>
+                <div class="aqi-gauge-wrapper">
+                    <span class="stat-value-large" id="aqi">--</span>
+                    <span class="aqi-badge good" id="aqi-badge">--</span>
                 </div>
-                <div class="detail">
-                    <span class="label">UV Index</span>
-                    <span class="value" id="uv-index">--</span>
+            </div>
+
+            <!-- Barometric Pressure card -->
+            <div class="stat-card" style="grid-column: span 2; flex-direction: row; justify-content: space-around; width: 100%;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;">
+                    <span class="stat-title" style="margin-bottom: 5px;">Pressure</span>
+                    <span class="stat-value-large" id="pressure">-- hPa</span>
                 </div>
-                <div class="detail" style="grid-column: span 2;">
-                    <span class="label">Atmospheric Pressure</span>
-                    <span class="value" id="pressure">-- hPa</span>
+                <div style="display: flex; align-items: center; justify-content: center; opacity: 0.5;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6V12L16 14"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drive Planner Panel -->
+        <div class="drive-planner-panel" id="drive-planner-panel" style="display: none;">
+            <div class="drive-search-card">
+                <h4 style="font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                    Safety Route Assessment
+                </h4>
+                <div class="drive-inputs">
+                    <input type="text" id="origin-input" placeholder="Departure City (e.g. Hyderabad)">
+                    <input type="text" id="dest-input" placeholder="Destination City (e.g. Bangalore)">
+                </div>
+                <button id="plan-drive-btn" class="btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                    Check Route Safety
+                </button>
+            </div>
+
+            <!-- Detailed Drive Safety Assessment Results -->
+            <div class="drive-results" id="drive-results">
+                <div class="drive-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Distance</span>
+                        <div class="summary-val" id="drive-distance">-- km</div>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Estimated Time</span>
+                        <div class="summary-val" id="drive-duration">-- hrs</div>
+                    </div>
+                </div>
+
+                <!-- Multi-point Safety Timeline -->
+                <div class="route-timeline">
+                    <!-- Origin Node -->
+                    <div class="timeline-node">
+                        <div class="timeline-dot" id="origin-dot"></div>
+                        <div class="timeline-card">
+                            <div class="node-details">
+                                <span class="node-label">Origin</span>
+                                <span class="node-city" id="origin-city-lbl">--</span>
+                                <span class="node-weather" id="origin-weather-lbl">--</span>
+                            </div>
+                            <span class="node-safety-badge" id="origin-safety-badge">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Midpoint Node -->
+                    <div class="timeline-node">
+                        <div class="timeline-dot" id="midpoint-dot"></div>
+                        <div class="timeline-card">
+                            <div class="node-details">
+                                <span class="node-label">Midpoint</span>
+                                <span class="node-city" id="midpoint-city-lbl">Calculating...</span>
+                                <span class="node-weather" id="midpoint-weather-lbl">--</span>
+                            </div>
+                            <span class="node-safety-badge" id="midpoint-safety-badge">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Destination Node -->
+                    <div class="timeline-node">
+                        <div class="timeline-dot" id="dest-dot"></div>
+                        <div class="timeline-card">
+                            <div class="node-details">
+                                <span class="node-label">Destination</span>
+                                <span class="node-city" id="dest-city-lbl">--</span>
+                                <span class="node-weather" id="dest-weather-lbl">--</span>
+                            </div>
+                            <span class="node-safety-badge" id="dest-safety-badge">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Route Recommendation Card -->
+                <div class="overall-safety-card" id="overall-safety-card">
+                    <h4 class="overall-status" id="overall-status">Safe to Drive!</h4>
+                    <p class="overall-reason" id="overall-reason">All points along the route report clear driving conditions.</p>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
