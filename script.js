@@ -392,9 +392,16 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
         let iconCode = weatherMapping.icon;
         if (current.is_day === 0) iconCode = iconCode.replace('d', 'n');
         
-        // Save hourly stats for SVG trend line
-        hourlyForecastData = weatherData.hourly.temperature_2m.slice(0, 12);
-        hourlyTimeData = weatherData.hourly.time.slice(0, 12);
+        // Find current hour index based on API's current time string
+        const currentTimeStr = weatherData.current.time;
+        let currentHourIndex = weatherData.hourly.time.findIndex(t => t.startsWith(currentTimeStr.slice(0, 13)));
+        if (currentHourIndex === -1) {
+            currentHourIndex = 0;
+        }
+
+        // Save hourly stats for SVG trend line (next 12 hours starting from current hour)
+        hourlyForecastData = weatherData.hourly.temperature_2m.slice(currentHourIndex, currentHourIndex + 12);
+        hourlyTimeData = weatherData.hourly.time.slice(currentHourIndex, currentHourIndex + 12);
 
         // Update dashboard values
         updateUI({
@@ -412,7 +419,7 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
         });
 
         // Render Forecast sliders & lists
-        renderHourlyForecast(weatherData.hourly);
+        renderHourlyForecast(weatherData.hourly, currentHourIndex);
         renderDailyForecast(weatherData.daily);
         renderSVGChart();
 
@@ -494,22 +501,25 @@ function updateTemperatureDisplay() {
     }
 }
 
-// Populate horizontal hourly forecast cards
-function renderHourlyForecast(hourlyData) {
+// Populate horizontal hourly forecast cards starting from the current hour
+function renderHourlyForecast(hourlyData, currentHourIndex) {
     const listContainer = document.getElementById('hourly-list');
     listContainer.innerHTML = '';
 
-    // Take weather values for the next 24 hours (step of 2 to display neatly)
-    for (let i = 0; i < 24; i += 2) {
-        const timeStr = hourlyData.time[i];
-        const tempC = hourlyData.temperature_2m[i];
-        const code = hourlyData.weather_code[i];
+    // Show 24 consecutive hours (step of 1 for granular detail)
+    for (let i = 0; i < 24; i++) {
+        const idx = currentHourIndex + i;
+        if (idx >= hourlyData.time.length) break;
+
+        const timeStr = hourlyData.time[idx];
+        const tempC = hourlyData.temperature_2m[idx];
+        const code = hourlyData.weather_code[idx];
 
         const date = new Date(timeStr);
         let hours = date.getHours();
         const ampm = hours >= 12 ? 'PM' : 'AM';
         hours = hours % 12 || 12;
-        const formattedHour = `${hours} ${ampm}`;
+        const formattedHour = i === 0 ? 'Now' : `${hours} ${ampm}`;
 
         const conditionMapping = wmoToCondition[code] || { main: 'Clear', icon: '01d' };
         const iconSrc = `https://openweathermap.org/img/wn/${conditionMapping.icon}.png`;
@@ -520,7 +530,7 @@ function renderHourlyForecast(hourlyData) {
         }
 
         const card = document.createElement('div');
-        card.className = 'hourly-card';
+        card.className = `hourly-card${i === 0 ? ' active-hour' : ''}`;
         card.innerHTML = `
             <span class="time">${formattedHour}</span>
             <img src="${iconSrc}" alt="forecast icon">
