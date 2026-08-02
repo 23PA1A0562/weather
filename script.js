@@ -274,7 +274,6 @@ const CITY_SYNONYMS = {
     "benares": "Varanasi"
 };
 
-// Fetch coordinates from geocoding API with robust filtering
 // Parse OpenStreetMap Nominatim result format into a clean model
 function parseNominatimResult(result) {
     const addr = result.address || {};
@@ -977,32 +976,42 @@ const POPULAR_CITIES = [
 ];
 
 // Auto-suggestions / Autocomplete input triggers
-let suggestionDebounceTimeout;
-const suggestionsBox = document.getElementById('suggestions-box');
-
-cityInput.addEventListener('input', () => {
-    clearTimeout(suggestionDebounceTimeout);
-    const query = cityInput.value.trim();
-    if (query.length < 1) {
-        hideSuggestions();
-        return;
-    }
+function setupAutocomplete(inputEl, boxEl) {
+    if (!inputEl || !boxEl) return;
     
-    // Instant local matches for snappy UX
-    const localMatches = searchLocalCities(query);
-    if (localMatches.length > 0) {
-        showSuggestions(localMatches, query);
-    }
+    let debounceTimeout;
     
-    // Trigger remote API query if query is longer
-    if (query.length >= 2) {
-        suggestionDebounceTimeout = setTimeout(() => {
-            fetchSuggestions(query, localMatches);
-        }, 300);
-    } else if (localMatches.length === 0) {
-        hideSuggestions();
-    }
-});
+    inputEl.addEventListener('input', () => {
+        clearTimeout(debounceTimeout);
+        const query = inputEl.value.trim();
+        if (query.length < 1) {
+            boxEl.style.display = 'none';
+            return;
+        }
+        
+        // Instant local matches for snappy UX
+        const localMatches = searchLocalCities(query);
+        if (localMatches.length > 0) {
+            renderSuggestions(localMatches, query, inputEl, boxEl);
+        }
+        
+        // Trigger remote API query if query is longer
+        if (query.length >= 2) {
+            debounceTimeout = setTimeout(() => {
+                fetchSuggestionsForEl(query, localMatches, inputEl, boxEl);
+            }, 300);
+        } else if (localMatches.length === 0) {
+            boxEl.style.display = 'none';
+        }
+    });
+    
+    // Hide dropdown if clicked outside search input/box
+    document.addEventListener('click', (e) => {
+        if (!inputEl.contains(e.target) && !boxEl.contains(e.target)) {
+            boxEl.style.display = 'none';
+        }
+    });
+}
 
 function searchLocalCities(query) {
     const lowerQuery = query.toLowerCase();
@@ -1011,7 +1020,7 @@ function searchLocalCities(query) {
     );
 }
 
-async function fetchSuggestions(query, localMatches = []) {
+async function fetchSuggestionsForEl(query, localMatches, inputEl, boxEl) {
     try {
         const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=6`;
         const response = await fetch(geoUrl, {
@@ -1033,24 +1042,23 @@ async function fetchSuggestions(query, localMatches = []) {
         const combined = [...localMatches, ...uniqueApiResults];
         
         if (combined.length > 0) {
-            showSuggestions(combined, query);
+            renderSuggestions(combined, query, inputEl, boxEl);
         } else {
-            hideSuggestions();
+            boxEl.style.display = 'none';
         }
     } catch (e) {
-        console.error("Suggestions fetch error:", e);
+        console.error("Autocomplete fetch error:", e);
         // Fallback to showing local matches on error
         if (localMatches.length > 0) {
-            showSuggestions(localMatches, query);
+            renderSuggestions(localMatches, query, inputEl, boxEl);
         } else {
-            hideSuggestions();
+            boxEl.style.display = 'none';
         }
     }
 }
 
-function showSuggestions(results, query) {
-    if (!suggestionsBox) return;
-    suggestionsBox.innerHTML = '';
+function renderSuggestions(results, query, inputEl, boxEl) {
+    boxEl.innerHTML = '';
     
     results.forEach(city => {
         const item = document.createElement('div');
@@ -1084,26 +1092,24 @@ function showSuggestions(results, query) {
         item.appendChild(nameSpan);
         item.appendChild(detailsSpan);
         
-        // Suggestion click behavior
+        // Click action
         item.addEventListener('click', () => {
-            cityInput.value = city.name;
-            hideSuggestions();
-            fetchAndDisplayWeather(city.latitude, city.longitude, city.name);
+            inputEl.value = city.name;
+            boxEl.style.display = 'none';
+            
+            // If it is the main weather search, trigger the weather query
+            if (inputEl === cityInput) {
+                fetchAndDisplayWeather(city.latitude, city.longitude, city.name);
+            }
         });
         
-        suggestionsBox.appendChild(item);
+        boxEl.appendChild(item);
     });
     
-    suggestionsBox.style.display = 'block';
+    boxEl.style.display = 'block';
 }
 
-function hideSuggestions() {
-    if (suggestionsBox) suggestionsBox.style.display = 'none';
-}
-
-// Hide dropdown if clicked outside search wrapper
-document.addEventListener('click', (e) => {
-    if (suggestionsBox && !cityInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-        hideSuggestions();
-    }
-});
+// Bind autocomplete handlers on page load
+setupAutocomplete(cityInput, document.getElementById('suggestions-box'));
+setupAutocomplete(originInput, document.getElementById('origin-suggestions-box'));
+setupAutocomplete(destInput, document.getElementById('dest-suggestions-box'));
