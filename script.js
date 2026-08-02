@@ -69,6 +69,7 @@ const overallReason = document.getElementById('overall-reason');
 // State Variables
 let currentUnit = 'metric'; // 'metric' = Celsius, 'imperial' = Fahrenheit
 let currentTempC = null; // Store temp in C for conversion
+let currentApparentTempC = null; // Store feels-like temp in C for conversion and UI
 let hourlyForecastData = []; // Store hourly temperature forecast
 let hourlyTimeData = []; // Store hourly times
 
@@ -222,13 +223,31 @@ window.addEventListener('DOMContentLoaded', () => {
             const { latitude, longitude } = position.coords;
             getWeatherByCoords(latitude, longitude);
         }, () => {
-            // Default to Hyderabad if location permission is denied
-            getWeatherData('Hyderabad');
+            // Check IP location if browser geolocation is denied/fails
+            getIPLocation();
         });
     } else {
-        getWeatherData('Hyderabad');
+        getIPLocation();
     }
 });
+
+// Fetch location using client IP when browser geolocation fails
+async function getIPLocation() {
+    try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error("IP geolocation network error.");
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+            const city = data.city || "Bhimavaram";
+            await fetchAndDisplayWeather(data.latitude, data.longitude, city);
+        } else {
+            getWeatherData('Bhimavaram'); // Default fallback to Bhimavaram
+        }
+    } catch (e) {
+        console.error("IP Geolocation error:", e);
+        getWeatherData('Bhimavaram'); // Default fallback to Bhimavaram
+    }
+}
 
 // Trigger shake error animation on inputs
 function triggerSearchError() {
@@ -371,7 +390,7 @@ function toggleSkeletonState(isLoading) {
 // Main API retrieval orchestrator
 async function fetchAndDisplayWeather(lat, lon, locationName) {
     try {
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
         const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,uv_index`;
 
         const [weatherResponse, aqiResponse] = await Promise.all([
@@ -406,6 +425,7 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
         // Update dashboard values
         updateUI({
             temp: current.temperature_2m,
+            apparentTemp: current.apparent_temperature,
             name: locationName,
             condition: weatherMapping.main,
             humidity: current.relative_humidity_2m,
@@ -434,6 +454,7 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
 // Populate interface elements
 function updateUI(data) {
     currentTempC = data.temp;
+    currentApparentTempC = data.apparentTemp;
     updateTemperatureDisplay();
     
     cityNameEl.textContent = data.name;
@@ -491,59 +512,124 @@ function updateUI(data) {
         overlay.style.opacity = 0.55;
     }
 
-    // Update dynamic background blob colors
-    const root = document.documentElement;
-    const cond = data.condition;
-    const isDay = data.isDay === 1;
-
-    if (cond === 'Clear') {
-        if (isDay) {
-            root.style.setProperty('--blob-color-1', '#ff9f43');
-            root.style.setProperty('--blob-color-2', '#ff5252');
-            root.style.setProperty('--blob-color-3', '#00d2d3');
-        } else {
-            root.style.setProperty('--blob-color-1', '#5f27cd');
-            root.style.setProperty('--blob-color-2', '#0a3d62');
-            root.style.setProperty('--blob-color-3', '#1e272e');
-        }
-    } else if (cond === 'Clouds') {
-        if (isDay) {
-            root.style.setProperty('--blob-color-1', '#4b6584');
-            root.style.setProperty('--blob-color-2', '#a5b1c2');
-            root.style.setProperty('--blob-color-3', '#778ca3');
-        } else {
-            root.style.setProperty('--blob-color-1', '#2f3640');
-            root.style.setProperty('--blob-color-2', '#718093');
-            root.style.setProperty('--blob-color-3', '#192a56');
-        }
-    } else if (cond === 'Rain' || cond === 'Mist') {
-        root.style.setProperty('--blob-color-1', '#0984e3');
-        root.style.setProperty('--blob-color-2', '#2d3436');
-        root.style.setProperty('--blob-color-3', '#00cec9');
-    } else if (cond === 'Thunderstorm') {
-        root.style.setProperty('--blob-color-1', '#ffeaa7');
-        root.style.setProperty('--blob-color-2', '#6c5ce7');
-        root.style.setProperty('--blob-color-3', '#1e272e');
-    } else if (cond === 'Snow') {
-        root.style.setProperty('--blob-color-1', '#dfe6e9');
-        root.style.setProperty('--blob-color-2', '#74b9ff');
-        root.style.setProperty('--blob-color-3', '#0984e3');
-    } else {
-        root.style.setProperty('--blob-color-1', '#00f2fe');
-        root.style.setProperty('--blob-color-2', '#ff007f');
-        root.style.setProperty('--blob-color-3', '#7000ff');
-    }
+    // Update dynamic background blob colors and animation speeds based on temperature
+    updateBackgroundByTemperature(data.temp, data.isDay === 1);
 }
 
 // Convert temperature scale displays
 function updateTemperatureDisplay() {
     if (currentTempC === null) return; 
+    
+    let mainTempText = "";
+    let feelsLikeText = "";
+    
     if (currentUnit === 'metric') {
-        temperatureEl.textContent = `${Math.round(currentTempC)}°C`;
+        mainTempText = `${Math.round(currentTempC)}°C`;
+        if (currentApparentTempC !== undefined && currentApparentTempC !== null) {
+            feelsLikeText = `Feels like ${Math.round(currentApparentTempC)}°C`;
+        }
     } else {
         const tempF = (currentTempC * 9/5) + 32;
-        temperatureEl.textContent = `${Math.round(tempF)}°F`;
+        mainTempText = `${Math.round(tempF)}°F`;
+        if (currentApparentTempC !== undefined && currentApparentTempC !== null) {
+            const apparentTempF = (currentApparentTempC * 9/5) + 32;
+            feelsLikeText = `Feels like ${Math.round(apparentTempF)}°F`;
+        }
     }
+    
+    temperatureEl.textContent = mainTempText;
+    const feelsLikeEl = document.getElementById('feels-like');
+    if (feelsLikeEl) {
+        feelsLikeEl.textContent = feelsLikeText;
+    }
+}
+
+// Dynamically update background UX (gradients and blob animation speeds) according to climate temperature
+function updateBackgroundByTemperature(tempC, isDay) {
+    const root = document.documentElement;
+    const blob1 = document.querySelector('.blob-1');
+    const blob2 = document.querySelector('.blob-2');
+    const blob3 = document.querySelector('.blob-3');
+
+    // Define colors and animation durations based on temperature ranges
+    let colors = {};
+    let animationDuration = "22s";
+
+    if (tempC >= 32) {
+        // Hot / Scorching (e.g. Bhimavaram in summer)
+        if (isDay) {
+            colors = {
+                blob1: '#ff4e50', // Fiery orange-red
+                blob2: '#ff8c00', // Deep sun orange
+                blob3: '#f9d423'  // Bright radiant yellow
+            };
+        } else {
+            colors = {
+                blob1: '#e85d04', // Muted fiery orange
+                blob2: '#370617', // Dark crimson
+                blob3: '#6a040f'  // Deep warm red
+            };
+        }
+        animationDuration = "12s"; // Fast, active motion representing heat energy
+    } else if (tempC >= 22) {
+        // Warm / Pleasant
+        if (isDay) {
+            colors = {
+                blob1: '#ff9f43', // Warm peach
+                blob2: '#00d2d3', // Sunny teal
+                blob3: '#ff5252'  // Soft warm red
+            };
+        } else {
+            colors = {
+                blob1: '#5f27cd', // Purple
+                blob2: '#0a3d62', // Muted warm blue
+                blob3: '#1e272e'  // Deep twilight slate
+            };
+        }
+        animationDuration = "20s"; // Moderate pace
+    } else if (tempC >= 12) {
+        // Cool / Mild
+        if (isDay) {
+            colors = {
+                blob1: '#11998e', // Fresh mint
+                blob2: '#38ef7d', // Emerald green
+                blob3: '#00c6ff'  // Cool bright cyan
+            };
+        } else {
+            colors = {
+                blob1: '#0f2027', // Deep slate green
+                blob2: '#203a43', // Dark forest teal
+                blob3: '#2c5364'  // Calm cool navy
+            };
+        }
+        animationDuration = "26s"; // Relaxed, slower pace
+    } else {
+        // Cold / Frosty
+        if (isDay) {
+            colors = {
+                blob1: '#00c6ff', // Polar light blue
+                blob2: '#0072ff', // Deep ice blue
+                blob3: '#dfe6e9'  // Frost white
+            };
+        } else {
+            colors = {
+                blob1: '#1e3799', // Midnight blue
+                blob2: '#0c2461', // Deep ocean navy
+                blob3: '#5f27cd'  // Muted icy violet
+            };
+        }
+        animationDuration = "36s"; // Very slow, calm drifting
+    }
+
+    // Apply colors to CSS custom properties (transitions are smooth via @property)
+    root.style.setProperty('--blob-color-1', colors.blob1);
+    root.style.setProperty('--blob-color-2', colors.blob2);
+    root.style.setProperty('--blob-color-3', colors.blob3);
+
+    // Apply dynamic animation durations to the HTML blobs
+    if (blob1) blob1.style.animationDuration = animationDuration;
+    if (blob2) blob2.style.animationDuration = animationDuration;
+    if (blob3) blob3.style.animationDuration = animationDuration;
 }
 
 // Populate horizontal hourly forecast cards and center on current hour

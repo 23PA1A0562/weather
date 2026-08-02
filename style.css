@@ -1,3 +1,19 @@
+@property --blob-color-1 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #00f2fe;
+}
+@property --blob-color-2 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #ff007f;
+}
+@property --blob-color-3 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #7000ff;
+}
+
 :root {
     --primary-glow: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
     --font-family: 'Plus Jakarta Sans', sans-serif;
@@ -58,6 +74,7 @@ body {
     opacity: 0.38;
     mix-blend-mode: screen;
     animation: move-blobs 22s infinite alternate ease-in-out;
+    transition: --blob-color-1 2s ease, --blob-color-2 2s ease, --blob-color-3 2s ease;
 }
 
 .blob-1 {
@@ -403,6 +420,32 @@ header {
     font-size: 32px;
     font-weight: 700;
     margin-bottom: 4px;
+}
+
+.hero-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 15px;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.hero-condition {
+    color: var(--accent-color);
+    font-weight: 600;
+    text-transform: capitalize;
+    text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+.hero-divider {
+    opacity: 0.4;
+}
+
+.hero-feels-like {
+    opacity: 0.9;
 }
 
 /* Right Panel - Forecast & Charts */
