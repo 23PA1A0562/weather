@@ -275,62 +275,59 @@ const CITY_SYNONYMS = {
 };
 
 // Fetch coordinates from geocoding API with robust filtering
+// Parse OpenStreetMap Nominatim result format into a clean model
+function parseNominatimResult(result) {
+    const addr = result.address || {};
+    
+    // Determine the primary name of the place
+    let name = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.neighbourhood || result.name;
+    
+    // If it's a postcode-only result, or the name is a number
+    if (/^\d+$/.test(name)) {
+        name = addr.city || addr.town || addr.village || addr.suburb || addr.county || result.name;
+    }
+    
+    // Format the details (pincode, district, state, country)
+    const postcode = addr.postcode ? `(${addr.postcode})` : "";
+    const statePart = addr.state ? `${addr.state}, ` : "";
+    const countryPart = addr.country || "";
+    
+    // Clean details formatting
+    const details = `${postcode} ${addr.state_district || addr.county || ""}, ${statePart}${countryPart}`.trim().replace(/^,|,$/g, '').trim();
+    
+    return {
+        name: name,
+        display_name: result.display_name,
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        admin1: addr.state || "",
+        country: addr.country || "",
+        details: details
+    };
+}
+
+// Fetch coordinates from OpenStreetMap Nominatim API with support for villages, cities, countries, and pincodes
 async function getGeoCoords(city) {
     let cleanCity = city.trim();
-    let filterPart = null;
-
-    // Handle comma-separated location refinements (e.g. "Bangalore, India")
-    if (cleanCity.includes(',')) {
-        const parts = cleanCity.split(',');
-        cleanCity = parts[0].trim();
-        filterPart = parts[1].trim().toLowerCase();
-    }
-
+    
+    // Support city synonyms
     const lowerCity = cleanCity.toLowerCase();
     if (CITY_SYNONYMS[lowerCity]) {
         cleanCity = CITY_SYNONYMS[lowerCity];
     }
-
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanCity)}&count=20&language=en&format=json`;
-    const geoResponse = await fetch(geoUrl);
-    if (!geoResponse.ok) throw new Error("Network response error during geocoding.");
-    const geoData = await geoResponse.json();
-    if (!geoData.results || geoData.results.length === 0) throw new Error("City not found: " + city);
-
-    const results = geoData.results;
-
-    // Sort to prioritize India and larger cities to avoid matching tiny foreign villages
-    results.sort((a, b) => {
-        if (filterPart) {
-            const aMatches = (
-                (a.country && a.country.toLowerCase().includes(filterPart)) ||
-                (a.country_code && a.country_code.toLowerCase().includes(filterPart)) ||
-                (a.admin1 && a.admin1.toLowerCase().includes(filterPart)) ||
-                (a.admin2 && a.admin2.toLowerCase().includes(filterPart))
-            ) ? 1 : 0;
-            const bMatches = (
-                (b.country && b.country.toLowerCase().includes(filterPart)) ||
-                (b.country_code && b.country_code.toLowerCase().includes(filterPart)) ||
-                (b.admin1 && b.admin1.toLowerCase().includes(filterPart)) ||
-                (b.admin2 && b.admin2.toLowerCase().includes(filterPart))
-            ) ? 1 : 0;
-            if (aMatches !== bMatches) return bMatches - aMatches;
+    
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanCity)}&format=json&addressdetails=1&limit=5`;
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'AtmosphereWeatherApp/1.0'
         }
-
-        // Prioritize India (IN)
-        const aIsIndia = a.country_code === 'IN' ? 1 : 0;
-        const bIsIndia = b.country_code === 'IN' ? 1 : 0;
-        if (aIsIndia !== bIsIndia) return bIsIndia - aIsIndia;
-
-        // Prioritize population
-        const aPop = a.population || 0;
-        const bPop = b.population || 0;
-        if (aPop !== bPop) return bPop - aPop;
-
-        return 0;
     });
-
-    return results[0];
+    if (!response.ok) throw new Error("Network response error during geocoding.");
+    const results = await response.json();
+    if (!results || results.length === 0) throw new Error("Location not found: " + city);
+    
+    // Parse and return the top matching result
+    return parseNominatimResult(results[0]);
 }
 
 // Search by city query
@@ -959,3 +956,154 @@ function updateRouteTimelineNode(nodePrefix, cityName, condition) {
         badge.textContent = 'Good';
     }
 }
+
+// Popular Local Cities for Instant Autocomplete Matches
+const POPULAR_CITIES = [
+    { name: "Hyderabad", admin1: "Telangana", country: "India", latitude: 17.3850, longitude: 78.4867 },
+    { name: "Bhimavaram", admin1: "Andhra Pradesh", country: "India", latitude: 16.5408, longitude: 81.5232 },
+    { name: "Bengaluru", admin1: "Karnataka", country: "India", latitude: 12.9716, longitude: 77.5946 },
+    { name: "Mumbai", admin1: "Maharashtra", country: "India", latitude: 19.0760, longitude: 72.8777 },
+    { name: "Delhi", admin1: "Delhi", country: "India", latitude: 28.6139, longitude: 77.2090 },
+    { name: "Chennai", admin1: "Tamil Nadu", country: "India", latitude: 13.0827, longitude: 80.2707 },
+    { name: "Kolkata", admin1: "West Bengal", country: "India", latitude: 22.5726, longitude: 88.3639 },
+    { name: "Pune", admin1: "Maharashtra", country: "India", latitude: 18.5204, longitude: 73.8567 },
+    { name: "Visakhapatnam", admin1: "Andhra Pradesh", country: "India", latitude: 17.6868, longitude: 83.2185 },
+    { name: "Vijayawada", admin1: "Andhra Pradesh", country: "India", latitude: 16.5062, longitude: 80.6480 },
+    { name: "Guntur", admin1: "Andhra Pradesh", country: "India", latitude: 16.3067, longitude: 80.4365 },
+    { name: "Nellore", admin1: "Andhra Pradesh", country: "India", latitude: 14.4426, longitude: 79.9864 },
+    { name: "Tirupati", admin1: "Andhra Pradesh", country: "India", latitude: 13.6288, longitude: 79.4192 },
+    { name: "Kakinada", admin1: "Andhra Pradesh", country: "India", latitude: 16.9891, longitude: 82.2475 },
+    { name: "Rajahmundry", admin1: "Andhra Pradesh", country: "India", latitude: 17.0005, longitude: 81.8040 }
+];
+
+// Auto-suggestions / Autocomplete input triggers
+let suggestionDebounceTimeout;
+const suggestionsBox = document.getElementById('suggestions-box');
+
+cityInput.addEventListener('input', () => {
+    clearTimeout(suggestionDebounceTimeout);
+    const query = cityInput.value.trim();
+    if (query.length < 1) {
+        hideSuggestions();
+        return;
+    }
+    
+    // Instant local matches for snappy UX
+    const localMatches = searchLocalCities(query);
+    if (localMatches.length > 0) {
+        showSuggestions(localMatches, query);
+    }
+    
+    // Trigger remote API query if query is longer
+    if (query.length >= 2) {
+        suggestionDebounceTimeout = setTimeout(() => {
+            fetchSuggestions(query, localMatches);
+        }, 300);
+    } else if (localMatches.length === 0) {
+        hideSuggestions();
+    }
+});
+
+function searchLocalCities(query) {
+    const lowerQuery = query.toLowerCase();
+    return POPULAR_CITIES.filter(city => 
+        city.name.toLowerCase().startsWith(lowerQuery)
+    );
+}
+
+async function fetchSuggestions(query, localMatches = []) {
+    try {
+        const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=6`;
+        const response = await fetch(geoUrl, {
+            headers: {
+                'User-Agent': 'AtmosphereWeatherApp/1.0'
+            }
+        });
+        if (!response.ok) return;
+        const results = await response.json();
+        
+        // Parse results using parseNominatimResult
+        const apiResults = results.map(r => parseNominatimResult(r));
+        
+        // De-duplicate: filter out API results that are already in localMatches
+        const localNames = new Set(localMatches.map(c => c.name.toLowerCase()));
+        const uniqueApiResults = apiResults.filter(city => !localNames.has(city.name.toLowerCase()));
+        
+        // Combine lists: local matches first, followed by remote API matches
+        const combined = [...localMatches, ...uniqueApiResults];
+        
+        if (combined.length > 0) {
+            showSuggestions(combined, query);
+        } else {
+            hideSuggestions();
+        }
+    } catch (e) {
+        console.error("Suggestions fetch error:", e);
+        // Fallback to showing local matches on error
+        if (localMatches.length > 0) {
+            showSuggestions(localMatches, query);
+        } else {
+            hideSuggestions();
+        }
+    }
+}
+
+function showSuggestions(results, query) {
+    if (!suggestionsBox) return;
+    suggestionsBox.innerHTML = '';
+    
+    results.forEach(city => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'suggestion-name';
+        
+        // Highlight matching characters in bold
+        const lowerName = city.name.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        if (lowerName.startsWith(lowerQuery)) {
+            const matchLen = query.length;
+            nameSpan.innerHTML = `<strong>${city.name.substring(0, matchLen)}</strong>${city.name.substring(matchLen)}`;
+        } else {
+            nameSpan.textContent = city.name;
+        }
+        
+        const detailsSpan = document.createElement('span');
+        detailsSpan.className = 'suggestion-details';
+        
+        // Use parsed details string showing pincode, state, country
+        if (city.details) {
+            detailsSpan.textContent = city.details;
+        } else {
+            const state = city.admin1 ? `${city.admin1}, ` : '';
+            const country = city.country || '';
+            detailsSpan.textContent = `${state}${country}`;
+        }
+        
+        item.appendChild(nameSpan);
+        item.appendChild(detailsSpan);
+        
+        // Suggestion click behavior
+        item.addEventListener('click', () => {
+            cityInput.value = city.name;
+            hideSuggestions();
+            fetchAndDisplayWeather(city.latitude, city.longitude, city.name);
+        });
+        
+        suggestionsBox.appendChild(item);
+    });
+    
+    suggestionsBox.style.display = 'block';
+}
+
+function hideSuggestions() {
+    if (suggestionsBox) suggestionsBox.style.display = 'none';
+}
+
+// Hide dropdown if clicked outside search wrapper
+document.addEventListener('click', (e) => {
+    if (suggestionsBox && !cityInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+        hideSuggestions();
+    }
+});
