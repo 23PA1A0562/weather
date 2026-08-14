@@ -459,6 +459,7 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
             apparentTemp: current.apparent_temperature,
             name: locationName,
             condition: weatherMapping.main,
+            time: current.time,
             humidity: current.relative_humidity_2m,
             windSpeed: current.wind_speed_10m,
             windDirection: current.wind_direction_10m,
@@ -543,8 +544,8 @@ function updateUI(data) {
         overlay.style.opacity = 0.55;
     }
 
-    // Update dynamic background blob colors and animation speeds based on temperature
-    updateBackgroundByTemperature(data.temp, data.isDay === 1);
+    // Update dynamic background blob colors and vibe description badge
+    updateBackgroundByTimeAndClimate(data.temp, data.condition, data.isDay === 1, data.time);
 }
 
 // Convert temperature scale displays
@@ -575,92 +576,111 @@ function updateTemperatureDisplay() {
     }
 }
 
-// Dynamically update background UX (gradients and blob animation speeds) according to climate temperature
-function updateBackgroundByTemperature(tempC, isDay) {
+// Dynamically update ambient backgrounds & UI Vibe badge based on Climate and Time of Day
+function updateBackgroundByTimeAndClimate(tempC, condition, isDay, localTimeStr) {
     const root = document.documentElement;
     const blob1 = document.querySelector('.blob-1');
     const blob2 = document.querySelector('.blob-2');
     const blob3 = document.querySelector('.blob-3');
+    const vibeEl = document.getElementById('climate-vibe');
 
-    // Define colors and animation durations based on temperature ranges
-    let colors = {};
-    let animationDuration = "22s";
-
-    if (tempC >= 32) {
-        // Hot / Scorching (e.g. Bhimavaram in summer)
-        if (isDay) {
-            colors = {
-                blob1: '#ff4e50', // Fiery orange-red
-                blob2: '#ff8c00', // Deep sun orange
-                blob3: '#f9d423'  // Bright radiant yellow
-            };
-        } else {
-            colors = {
-                blob1: '#e85d04', // Muted fiery orange
-                blob2: '#370617', // Dark crimson
-                blob3: '#6a040f'  // Deep warm red
-            };
-        }
-        animationDuration = "12s"; // Fast, active motion representing heat energy
-    } else if (tempC >= 22) {
-        // Warm / Pleasant
-        if (isDay) {
-            colors = {
-                blob1: '#ff9f43', // Warm peach
-                blob2: '#00d2d3', // Sunny teal
-                blob3: '#ff5252'  // Soft warm red
-            };
-        } else {
-            colors = {
-                blob1: '#5f27cd', // Purple
-                blob2: '#0a3d62', // Muted warm blue
-                blob3: '#1e272e'  // Deep twilight slate
-            };
-        }
-        animationDuration = "20s"; // Moderate pace
-    } else if (tempC >= 12) {
-        // Cool / Mild
-        if (isDay) {
-            colors = {
-                blob1: '#11998e', // Fresh mint
-                blob2: '#38ef7d', // Emerald green
-                blob3: '#00c6ff'  // Cool bright cyan
-            };
-        } else {
-            colors = {
-                blob1: '#0f2027', // Deep slate green
-                blob2: '#203a43', // Dark forest teal
-                blob3: '#2c5364'  // Calm cool navy
-            };
-        }
-        animationDuration = "26s"; // Relaxed, slower pace
-    } else {
-        // Cold / Frosty
-        if (isDay) {
-            colors = {
-                blob1: '#00c6ff', // Polar light blue
-                blob2: '#0072ff', // Deep ice blue
-                blob3: '#dfe6e9'  // Frost white
-            };
-        } else {
-            colors = {
-                blob1: '#1e3799', // Midnight blue
-                blob2: '#0c2461', // Deep ocean navy
-                blob3: '#5f27cd'  // Muted icy violet
-            };
-        }
-        animationDuration = "36s"; // Very slow, calm drifting
+    // Parse hour from local time string
+    let hour = 12; // Default to mid-day
+    if (localTimeStr && localTimeStr.includes('T')) {
+        const timePart = localTimeStr.split('T')[1];
+        hour = parseInt(timePart.split(':')[0]);
     }
 
-    // Apply colors to CSS custom properties (transitions are smooth via @property)
+    // 1. Determine Time-of-Day Base Palette
+    let colors = {};
+    let vibeLabel = "";
+
+    if (hour >= 5 && hour < 9) {
+        // Morning / Sunrise
+        colors = {
+            blob1: '#ff9a9e', // Sunrise peach pink
+            blob2: '#fecfef', // Morning violet
+            blob3: '#a1c4fd'  // Pastel blue
+        };
+        vibeLabel = "🌅 Sunrise Lavender";
+    } else if (hour >= 9 && hour < 16) {
+        // Day / Afternoon
+        colors = {
+            blob1: '#00c6ff', // Bright sky blue
+            blob2: '#0072ff', // Electric teal
+            blob3: '#f9d423'  // Sun gold
+        };
+        vibeLabel = "☀️ Golden Afternoon";
+    } else if (hour >= 16 && hour < 19) {
+        // Evening / Sunset
+        colors = {
+            blob1: '#ff4e50', // Fiery orange
+            blob2: '#f9d423', // Sunset gold
+            blob3: '#7000ff'  // Twilight purple
+        };
+        vibeLabel = "🌇 Crimson Sunset";
+    } else {
+        // Night
+        colors = {
+            blob1: '#0f2027', // Deep midnight slate
+            blob2: '#203a43', // Dark cosmos teal
+            blob3: '#2c5364'  // Twilight navy blue
+        };
+        vibeLabel = "🌌 Space Midnight";
+    }
+
+    // 2. Overlay Climate Modifications on Top of Day-Cycle Palette
+    if (['Rain', 'Drizzle', 'Mist'].includes(condition)) {
+        colors.blob1 = '#576574'; // Rain cloud slate
+        colors.blob2 = '#0082c8'; // Wet deep blue
+        colors.blob3 = '#2f3640'; // Overcast charcoal
+        vibeLabel = `🌧️ Rainy ${vibeLabel.split(' ').slice(1).join(' ') || 'Slate'}`;
+    } else if (['Thunderstorm'].includes(condition)) {
+        colors.blob1 = '#3d3d3d'; // Storm cloud charcoal
+        colors.blob2 = '#6c5ce7'; // Electric storm purple
+        colors.blob3 = '#ffea77'; // Pale lightning yellow
+        vibeLabel = `⛈️ Stormy ${vibeLabel.split(' ').slice(1).join(' ') || 'Charcoal'}`;
+    } else if (['Clouds'].includes(condition)) {
+        colors.blob1 = '#7f8c8d'; // Cloud gray
+        colors.blob2 = '#dcdde1'; // Mist white
+        colors.blob3 = '#2f3542'; // Dark slate
+        vibeLabel = `☁️ Overcast ${vibeLabel.split(' ').slice(1).join(' ') || 'Silver'}`;
+    } else if (['Snow'].includes(condition)) {
+        colors.blob1 = '#dfe6e9'; // Frosted white
+        colors.blob2 = '#74b9ff'; // Ice blue
+        colors.blob3 = '#a5b1c2'; // Glacier grey
+        vibeLabel = `❄️ Frosted ${vibeLabel.split(' ').slice(1).join(' ') || 'Winter'}`;
+    } else if (tempC >= 32 && ['Clear'].includes(condition)) {
+        // Extreme heat clear
+        colors.blob1 = '#ff4e50';
+        colors.blob2 = '#f9d423';
+        colors.blob3 = '#e85d04';
+        vibeLabel = `🔥 Scorching ${vibeLabel.split(' ').slice(1).join(' ') || 'Heat'}`;
+    }
+
+    // 3. Set Dynamic Animation speed based on thermal energy
+    let animationDuration = "22s"; // Normal speed
+    if (tempC >= 32) {
+        animationDuration = "11s"; // Rapid heat energy
+    } else if (tempC <= 12) {
+        animationDuration = "36s"; // Sluggish frozen energy
+    } else if (['Rain', 'Thunderstorm'].includes(condition)) {
+        animationDuration = "16s"; // Active weather
+    }
+
+    // Apply colors and durations (transitions are smoothly interpolated using CSS @property rules)
     root.style.setProperty('--blob-color-1', colors.blob1);
     root.style.setProperty('--blob-color-2', colors.blob2);
     root.style.setProperty('--blob-color-3', colors.blob3);
 
-    // Apply dynamic animation durations to the HTML blobs
     if (blob1) blob1.style.animationDuration = animationDuration;
     if (blob2) blob2.style.animationDuration = animationDuration;
     if (blob3) blob3.style.animationDuration = animationDuration;
+
+    // Render Vibe text
+    if (vibeEl) {
+        vibeEl.textContent = vibeLabel;
+    }
 }
 
 // Populate horizontal hourly forecast cards and center on current hour

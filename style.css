@@ -71,8 +71,7 @@ body {
 .blob {
     position: absolute;
     border-radius: 50%;
-    opacity: 0.38;
-    mix-blend-mode: screen;
+    opacity: 0.28;
     animation: move-blobs 22s infinite alternate ease-in-out;
     transition: --blob-color-1 2s ease, --blob-color-2 2s ease, --blob-color-3 2s ease;
 }
@@ -80,7 +79,7 @@ body {
 .blob-1 {
     width: 450px;
     height: 450px;
-    background: radial-gradient(circle, var(--blob-color-1) 0%, rgba(0, 242, 254, 0) 70%);
+    background: radial-gradient(circle, var(--blob-color-1) 0%, transparent 70%);
     top: -10%;
     left: 10%;
 }
@@ -88,7 +87,7 @@ body {
 .blob-2 {
     width: 550px;
     height: 550px;
-    background: radial-gradient(circle, var(--blob-color-2) 0%, rgba(255, 0, 127, 0) 70%);
+    background: radial-gradient(circle, var(--blob-color-2) 0%, transparent 70%);
     bottom: -10%;
     right: 10%;
     animation-delay: -5s;
@@ -97,7 +96,7 @@ body {
 .blob-3 {
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, var(--blob-color-3) 0%, rgba(112, 0, 255, 0) 70%);
+    background: radial-gradient(circle, var(--blob-color-3) 0%, transparent 70%);
     top: 35%;
     left: 45%;
     animation-delay: -11s;
@@ -426,11 +425,12 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     font-size: 15px;
     color: var(--text-muted);
     margin-bottom: 15px;
     font-weight: 500;
+    flex-wrap: wrap;
 }
 
 .hero-condition {
@@ -438,6 +438,36 @@ header {
     font-weight: 600;
     text-transform: capitalize;
     text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+.hero-vibe {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 3px 12px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    letter-spacing: 0.2px;
+    transition: all 0.4s ease;
+    animation: pulse-badge 3s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.22);
+    }
 }
 
 .hero-divider {
