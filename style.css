@@ -1210,3 +1210,54 @@ header {
     font-size: 11px;
     color: var(--text-muted);
 }
+
+/* Hourly Forecast Timeline Selection and Reset Styles */
+.hourly-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    cursor: pointer;
+}
+
+.hourly-card:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    transform: translateY(-2px);
+}
+
+.hourly-card.selected-hour {
+    background: rgba(0, 242, 254, 0.15) !important;
+    border: 1.5px solid var(--accent-color) !important;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.3) !important;
+    transform: translateY(-4px);
+}
+
+.hero-reset-btn {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.18) 0%, rgba(112, 0, 255, 0.18) 100%);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #00f2fe;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.1);
+    transition: all 0.3s ease;
+    animation: pulse-reset-btn 2s infinite ease-in-out;
+}
+
+.hero-reset-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.3) 0%, rgba(112, 0, 255, 0.3) 100%);
+    border-color: rgba(0, 242, 254, 0.55);
+    box-shadow: 0 4px 20px rgba(0, 242, 254, 0.25);
+    transform: translateY(-1px);
+}
+
+@keyframes pulse-reset-btn {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(0, 242, 254, 0.1);
+    }
+    50% {
+        box-shadow: 0 4px 18px rgba(0, 242, 254, 0.25);
+    }
+}

@@ -72,6 +72,10 @@ let currentTempC = null; // Store temp in C for conversion
 let currentApparentTempC = null; // Store feels-like temp in C for conversion and UI
 let hourlyForecastData = []; // Store hourly temperature forecast
 let hourlyTimeData = []; // Store hourly times
+let rawHourlyData = null; // Store full raw hourly forecast variables
+let originalCurrentWeather = null; // Store present weather details to reset
+let currentHourIndexGlobal = 0; // Present hour index
+let originalCityName = ""; // Present staying city/suburb name
 
 // Premium Day/Night Backgrounds
 const backgrounds = {
@@ -216,7 +220,6 @@ planDriveBtn.addEventListener('click', () => {
     }
 });
 
-// Initial weather fetch on startup
 // Initial weather fetch on startup
 window.addEventListener('DOMContentLoaded', () => {
     if (navigator.geolocation) {
@@ -421,7 +424,7 @@ function toggleSkeletonState(isLoading) {
 // Main API retrieval orchestrator
 async function fetchAndDisplayWeather(lat, lon, locationName) {
     try {
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6`;
         const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,uv_index`;
 
         const [weatherResponse, aqiResponse] = await Promise.all([
@@ -453,8 +456,12 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
         hourlyForecastData = weatherData.hourly.temperature_2m.slice(currentHourIndex, currentHourIndex + 12);
         hourlyTimeData = weatherData.hourly.time.slice(currentHourIndex, currentHourIndex + 12);
 
-        // Update dashboard values
-        updateUI({
+        // Store global state for hourly clicking/scrubbing
+        originalCityName = locationName;
+        currentHourIndexGlobal = currentHourIndex;
+        rawHourlyData = weatherData.hourly;
+
+        originalCurrentWeather = {
             temp: current.temperature_2m,
             apparentTemp: current.apparent_temperature,
             name: locationName,
@@ -467,8 +474,12 @@ async function fetchAndDisplayWeather(lat, lon, locationName) {
             aqi: currentAqi.us_aqi,
             uv: currentAqi.uv_index,
             iconCode: iconCode,
-            isDay: current.is_day
-        });
+            isDay: current.is_day,
+            isForecastHour: false
+        };
+
+        // Update dashboard values
+        updateUI(originalCurrentWeather);
 
         // Render Forecast sliders & lists
         renderHourlyForecast(weatherData.hourly, currentHourIndex);
@@ -494,11 +505,11 @@ function updateUI(data) {
     weatherIconEl.src = `https://openweathermap.org/img/wn/${data.iconCode}@4x.png`;
 
     // Advanced widget details
-    windSpeedEl.textContent = `${Math.round(data.windSpeed)} km/h`;
+    windSpeedEl.textContent = data.windSpeed !== null && data.windSpeed !== undefined ? `${Math.round(data.windSpeed)} km/h` : "N/A";
     compassArrow.style.transform = `rotate(${data.windDirection || 0}deg)`;
 
-    // Humidity circular progress (circumference is 201)
-    humidityEl.textContent = `${data.humidity}%`;
+    // Humidity circular progress
+    humidityEl.textContent = data.humidity !== null && data.humidity !== undefined ? `${data.humidity}%` : "--%";
     const offset = 201 - (201 * (data.humidity || 0)) / 100;
     humidityBar.style.strokeDashoffset = offset;
 
@@ -510,8 +521,9 @@ function updateUI(data) {
     let uvText = "Low";
     if (uvVal >= 3 && uvVal <= 5) uvText = "Moderate";
     else if (uvVal >= 6 && uvVal <= 7) uvText = "High";
-    else if (uvVal >= 8) uvText = "Very High";
-    uvTextEl.textContent = `${uvText} Risk`;
+    else if (uvVal >= 8 && uvVal <= 10) uvText = "Very High";
+    else if (uvVal >= 11) uvText = "Extreme";
+    uvTextEl.textContent = uvText;
 
     // AQI rating badge
     const aqiVal = data.aqi !== undefined ? data.aqi : 0;
@@ -546,6 +558,12 @@ function updateUI(data) {
 
     // Update dynamic background blob colors and vibe description badge
     updateBackgroundByTimeAndClimate(data.temp, data.condition, data.isDay === 1, data.time);
+
+    // Toggle "Reset to Present" button
+    const resetBtn = document.getElementById('reset-present-btn');
+    if (resetBtn) {
+        resetBtn.style.display = data.isForecastHour ? 'inline-flex' : 'none';
+    }
 }
 
 // Convert temperature scale displays
@@ -721,6 +739,12 @@ function renderHourlyForecast(hourlyData, currentHourIndex) {
             <img src="${iconSrc}" alt="forecast icon">
             <span class="temp">${displayTemp}</span>
         `;
+        
+        // Add timeline scrubbing click listener
+        card.addEventListener('click', () => {
+            displayWeatherForHour(idx);
+        });
+        
         listContainer.appendChild(card);
     }
 
@@ -1164,3 +1188,85 @@ function renderSuggestions(results, query, inputEl, boxEl) {
 setupAutocomplete(cityInput, document.getElementById('suggestions-box'));
 setupAutocomplete(originInput, document.getElementById('origin-suggestions-box'));
 setupAutocomplete(destInput, document.getElementById('dest-suggestions-box'));
+
+// Display forecast data for a selected timeline hour
+function displayWeatherForHour(idx) {
+    if (!rawHourlyData) return;
+    
+    // Mark the selected card as active
+    const listContainer = document.getElementById('hourly-list');
+    const cards = listContainer.querySelectorAll('.hourly-card');
+    
+    const startIdx = Math.max(0, currentHourIndexGlobal - 5);
+    cards.forEach((card, i) => {
+        const currentIdx = startIdx + i;
+        if (currentIdx === idx) {
+            card.classList.add('selected-hour');
+            card.classList.remove('active-hour');
+        } else {
+            card.classList.remove('selected-hour');
+            if (currentIdx === currentHourIndexGlobal) {
+                card.classList.add('active-hour');
+            } else {
+                card.classList.remove('active-hour');
+            }
+        }
+    });
+
+    const temp = rawHourlyData.temperature_2m[idx];
+    const apparentTemp = rawHourlyData.apparent_temperature ? rawHourlyData.apparent_temperature[idx] : temp;
+    const conditionMapping = wmoToCondition[rawHourlyData.weather_code[idx]] || { main: 'Clear', icon: '01d' };
+    const time = rawHourlyData.time[idx];
+    
+    const isDayVal = rawHourlyData.is_day ? rawHourlyData.is_day[idx] : 1;
+    let iconCode = conditionMapping.icon;
+    if (isDayVal === 0) iconCode = iconCode.replace('d', 'n');
+    
+    // Format hour text for displaying in city header
+    const date = new Date(time);
+    let hours = date.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const formattedHour = `${hours}:00 ${ampm}`;
+
+    updateUI({
+        temp: temp,
+        apparentTemp: apparentTemp,
+        name: `${originalCityName} (at ${formattedHour})`,
+        condition: conditionMapping.main,
+        time: time,
+        humidity: rawHourlyData.relative_humidity_2m ? rawHourlyData.relative_humidity_2m[idx] : 0,
+        windSpeed: rawHourlyData.wind_speed_10m ? rawHourlyData.wind_speed_10m[idx] : 0,
+        windDirection: rawHourlyData.wind_direction_10m ? rawHourlyData.wind_direction_10m[idx] : 0,
+        pressure: rawHourlyData.surface_pressure ? rawHourlyData.surface_pressure[idx] : 0,
+        aqi: originalCurrentWeather.aqi, 
+        uv: originalCurrentWeather.uv,
+        iconCode: iconCode,
+        isDay: isDayVal,
+        isForecastHour: true
+    });
+}
+
+// Reset to present weather click listener
+const resetBtn = document.getElementById('reset-present-btn');
+if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+        if (originalCurrentWeather) {
+            // Restore active class to the current hour card
+            const listContainer = document.getElementById('hourly-list');
+            const cards = listContainer.querySelectorAll('.hourly-card');
+            const startIdx = Math.max(0, currentHourIndexGlobal - 5);
+            cards.forEach((card, i) => {
+                const currentIdx = startIdx + i;
+                if (currentIdx === currentHourIndexGlobal) {
+                    card.classList.add('active-hour');
+                } else {
+                    card.classList.remove('active-hour');
+                }
+                card.classList.remove('selected-hour');
+            });
+
+            updateUI(originalCurrentWeather);
+        }
+    });
+}
