@@ -217,13 +217,13 @@ planDriveBtn.addEventListener('click', () => {
 });
 
 // Initial weather fetch on startup
+// Initial weather fetch on startup
 window.addEventListener('DOMContentLoaded', () => {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
             const { latitude, longitude } = position.coords;
             getWeatherByCoords(latitude, longitude);
         }, () => {
-            // Check IP location if browser geolocation is denied/fails
             getIPLocation();
         });
     } else {
@@ -231,21 +231,68 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Fetch location details (suburb, village, town, and pincode) from Nominatim reverse geocoding API
+async function reverseGeocode(lat, lon) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Reverse geocode request failed");
+        const data = await response.json();
+        const addr = data.address || {};
+        
+        // Build descriptive staying location (local area + town/city)
+        let parts = [];
+        const localArea = addr.suburb || addr.neighbourhood || addr.village || addr.hamlet;
+        const mainArea = addr.city || addr.town || addr.municipality;
+        
+        if (localArea) parts.push(localArea);
+        if (mainArea && mainArea !== localArea) parts.push(mainArea);
+        
+        let name = parts.join(', ');
+        if (!name) name = addr.county || "Your Area";
+        
+        // Append pincode if found
+        if (addr.postcode) {
+            name += ` (${addr.postcode})`;
+        }
+        return name;
+    } catch (e) {
+        console.error("Reverse geocoding failed, using fallback:", e);
+        return "Your Area";
+    }
+}
+
 // Fetch location using client IP when browser geolocation fails
 async function getIPLocation() {
     try {
-        const response = await fetch('https://ipapi.co/json/');
+        const response = await fetch('http://ip-api.com/json/');
         if (!response.ok) throw new Error("IP geolocation network error.");
         const data = await response.json();
-        if (data.latitude && data.longitude) {
-            const city = data.city || "Bhimavaram";
-            await fetchAndDisplayWeather(data.latitude, data.longitude, city);
+        
+        let lat = data.lat;
+        let lon = data.lon;
+        let city = data.city;
+        
+        // Override cellular gateway IP routing (Guntur/Hyderabad) to the user's staying location: Bhimavaram
+        if (city === "Guntur" || city === "Hyderabad" || !city) {
+            lat = 16.5408;
+            lon = 81.5232;
+        }
+        
+        if (lat && lon) {
+            // Reverse geocode the IP coordinates for high-end local name and pincode
+            const locationName = await reverseGeocode(lat, lon);
+            await fetchAndDisplayWeather(lat, lon, locationName);
         } else {
             getWeatherData('Bhimavaram'); // Default fallback to Bhimavaram
         }
     } catch (e) {
         console.error("IP Geolocation error:", e);
-        getWeatherData('Bhimavaram'); // Default fallback to Bhimavaram
+        // Fallback coordinates for Bhimavaram
+        const lat = 16.5408;
+        const lon = 81.5232;
+        const locationName = await reverseGeocode(lat, lon);
+        await fetchAndDisplayWeather(lat, lon, locationName);
     }
 }
 
@@ -316,11 +363,7 @@ async function getGeoCoords(city) {
     }
     
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanCity)}&format=json&addressdetails=1&limit=5`;
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'AtmosphereWeatherApp/1.0'
-        }
-    });
+    const response = await fetch(url);
     if (!response.ok) throw new Error("Network response error during geocoding.");
     const results = await response.json();
     if (!results || results.length === 0) throw new Error("Location not found: " + city);
@@ -351,16 +394,8 @@ async function getWeatherByCoords(lat, lon) {
         toggleSkeletonState(true);
         cityInput.value = '';
         
-        let locationName = "Unknown Location";
-        try {
-            const reverseGeoUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
-            const reverseGeoResponse = await fetch(reverseGeoUrl);
-            const reverseGeoData = await reverseGeoResponse.json();
-            locationName = reverseGeoData.city || reverseGeoData.locality || reverseGeoData.principalSubdivision || "Your Area";
-        } catch(e) {
-            locationName = "Your Area";
-        }
-        
+        // Reverse geocode using Nominatim for precise staying location
+        const locationName = await reverseGeocode(lat, lon);
         await fetchAndDisplayWeather(lat, lon, locationName);
     } catch (error) {
         console.error(error);
@@ -1023,11 +1058,7 @@ function searchLocalCities(query) {
 async function fetchSuggestionsForEl(query, localMatches, inputEl, boxEl) {
     try {
         const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=6`;
-        const response = await fetch(geoUrl, {
-            headers: {
-                'User-Agent': 'AtmosphereWeatherApp/1.0'
-            }
-        });
+        const response = await fetch(geoUrl);
         if (!response.ok) return;
         const results = await response.json();
         
